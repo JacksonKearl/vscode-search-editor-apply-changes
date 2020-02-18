@@ -14,4 +14,4 @@ Search editor changes will overwrite their target files at the lines specified i
 
 ### What is this repository?
 
-This is an example provided to the community of how such and extension could be implemented. It is not battle-hardened and may contain bugs, as such it is not published to the Marketplace. Others are free to build upon this extension and release it to the Marketplace. Alternatively, you may simple clone it and use (`vsce`)[https://www.npmjs.com/package/vsce] to package a local version for yourself.
+This is an example provided to the community of how such and extension could be implemented. It is not battle-hardened and may contain bugs, as such it is not published to the Marketplace. Others are free to build upon this extension and release it to the Marketplace. Alternatively, you may simple clone it and use [`vsce`](https://www.npmjs.com/package/vsce) to package a local version for yourself.
