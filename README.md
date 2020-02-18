@@ -5,7 +5,7 @@ Apply changes in a Search Editor to files in a workspace.
 Steps:
 - Run a search
 - Edit results
-- Run command "Apply Search Editgor changes to worksapce"
+- Run command "Apply Search Editor changes to worksapce"
 
 > Warning: Ensure the workspace is in sync with the Search Editor before starting to make changes, otherwise data loss may occur. This can be done by simply rerunning the Editor's search.
 
