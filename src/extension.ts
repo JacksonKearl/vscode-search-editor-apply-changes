@@ -53,6 +53,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 		vscode.window.showInformationMessage(`Modified ${editedLines} lines in ${editedFiles.size} files.`);
 		vscode.workspace.applyEdit(edit);
+
+		// Hack to get the state clean, as it in some ways is clean, and this reduces friction for SaveAll/etc.
+		vscode.commands.executeCommand('cleanSearchEditorState');
 	}));
 }
 
