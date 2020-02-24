@@ -2,7 +2,7 @@
 
 Apply changes in a Search Editor to files in a workspace.
 
-![Example usage](demo.gif)
+![Example usage](https://raw.githubusercontent.com/JacksonKearl/vscode-search-editor-apply-changes/master/demo.gif)
 
 Steps:
 - Run a search
