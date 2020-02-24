@@ -2,13 +2,14 @@
 	"name": "search-editor-apply-changes",
 	"displayName": "search-editor-apply-changes",
 	"description": "Apply local Search Editor edits to your workspace",
-	"publisher": "none",
+	"publisher": "jakearl",
 	"repository": {
 		"url": "https://github.com/JacksonKearl/vscode-search-editor-apply-changes"
 	},
+	"icon": "icon.png",
 	"version": "0.0.1",
 	"engines": {
-		"vscode": "^1.42.0"
+		"vscode": "^1.43.0"
 	},
 	"categories": [
 		"Other"
