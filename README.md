@@ -2,6 +2,8 @@
 
 Apply changes in a Search Editor to files in a workspace.
 
+![Example usage](demo.gif)
+
 Steps:
 - Run a search
 - Edit results
