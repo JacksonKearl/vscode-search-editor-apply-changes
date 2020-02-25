@@ -1,6 +1,6 @@
 {
 	"name": "search-editor-apply-changes",
-	"displayName": "search-editor-apply-changes",
+	"displayName": "Search Editor: Apply Changes",
 	"description": "Apply local Search Editor edits to your workspace",
 	"publisher": "jakearl",
 	"repository": {
