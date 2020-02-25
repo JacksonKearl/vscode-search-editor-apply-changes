@@ -18,7 +18,6 @@ export function activate(context: vscode.ExtensionContext) {
 		let currentDocument: vscode.TextDocument | undefined;
 		let currentTarget: vscode.Uri | undefined;
 		const edit = new vscode.WorkspaceEdit();
-		let editedLines = 0;
 		let editedFiles = new Set();
 
 		const channel = vscode.window.createOutputChannel("Search Editor");
@@ -44,14 +43,12 @@ export function activate(context: vscode.ExtensionContext) {
 						editedFiles.add(currentTarget.toString());
 						channel.appendLine(filename);
 					}
-					channel.appendLine(` => ${newLine}`);
+					channel.appendLine(`	${oldLine.text} => ${newLine}`);
 					edit.replace(currentTarget, oldLine.range, newLine);
-					editedLines++;
 				}
 			}
 		}
 
-		vscode.window.showInformationMessage(`Modified ${editedLines} lines in ${editedFiles.size} files.`);
 		vscode.workspace.applyEdit(edit);
 
 		// Hack to get the state clean, as it in some ways is clean, and this reduces friction for SaveAll/etc.

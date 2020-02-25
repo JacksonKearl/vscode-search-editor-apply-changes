@@ -7,7 +7,7 @@
 		"url": "https://github.com/JacksonKearl/vscode-search-editor-apply-changes"
 	},
 	"icon": "icon.png",
-	"version": "0.0.2",
+	"version": "0.1.0",
 	"engines": {
 		"vscode": "^1.43.0"
 	},
