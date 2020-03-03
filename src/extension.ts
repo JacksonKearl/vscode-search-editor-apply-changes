@@ -19,6 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
 		let currentTarget: vscode.Uri | undefined;
 		const edit = new vscode.WorkspaceEdit();
 		let editedFiles = new Set();
+		let warnLongLines = false;
 
 		const channel = vscode.window.createOutputChannel("Search Editor");
 
@@ -38,7 +39,11 @@ export function activate(context: vscode.ExtensionContext) {
 				const [, indentation, _lineNumber, seperator, newLine] = resultLine;
 				const lineNumber = +_lineNumber - 1;
 				const oldLine = currentDocument.lineAt(lineNumber);
-				if (oldLine.text !== newLine) {
+				if (oldLine.range.end.character > 200) {
+					// TODO: #2
+					warnLongLines = true;
+				}
+				else if (oldLine.text !== newLine) {
 					if (!editedFiles.has(currentTarget.toString())) {
 						editedFiles.add(currentTarget.toString());
 						channel.appendLine(filename);
@@ -47,6 +52,10 @@ export function activate(context: vscode.ExtensionContext) {
 					edit.replace(currentTarget, oldLine.range, newLine);
 				}
 			}
+		}
+
+		if (warnLongLines) {
+			vscode.window.showWarningMessage('Changes to lines over 200 charachters in length may have been ignored.');
 		}
 
 		vscode.workspace.applyEdit(edit);
