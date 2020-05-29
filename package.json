@@ -15,7 +15,9 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onCommand:searchEditorApplyChanges.apply"
+		"onCommand:searchEditorApplyChanges.apply",
+		"onCommand:searchEditorApplyChanges.insertLineAbove",
+		"onCommand:searchEditorApplyChanges.insertLineBelow"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -23,7 +25,17 @@
 			{
 				"command": "searchEditorApplyChanges.apply",
 				"enablement": "editorLangId == search-result",
-				"title": "Apply Search Editor changes to workspace"
+				"title": "Search Editor Apply Changes: Apply"
+			},
+			{
+				"command": "searchEditorApplyChanges.insertLineAbove",
+				"enablement": "editorLangId == search-result",
+				"title": "Search Editor Apply Changes: Insert Line Above (in target document)"
+			},
+			{
+				"command": "searchEditorApplyChanges.insertLineBelow",
+				"enablement": "editorLangId == search-result",
+				"title": "Search Editor Apply Changes: Insert Line Below (in target document)"
 			}
 		]
 	},

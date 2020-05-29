@@ -3,9 +3,65 @@ import * as pathUtils from 'path';
 
 
 const FILE_LINE_REGEX = /^(\S.*):$/;
-const RESULT_LINE_REGEX = /^(\s+)(\d+)(:| ) (.*)$/;
+const RESULT_LINE_REGEX = /^(\s+)(\S+)(:| ) (.*)$/;
 
 export function activate(context: vscode.ExtensionContext) {
+
+	vscode.commands.registerCommand('searchEditorApplyChanges.insertLineAbove', async () => {
+		const activeEditor = vscode.window.activeTextEditor;
+		const activeDocument = activeEditor?.document;
+		if (!activeEditor || !activeDocument || activeDocument.languageId !== 'search-result') {
+			return;
+		}
+
+		const resultLines = activeEditor.selections
+			.map(selection => activeDocument.lineAt(selection.start.line))
+			.map(line => {
+				const match = RESULT_LINE_REGEX.exec(line.text);
+				if (!match) { return undefined; }
+				const [_, indentation, number] = match;
+				return { start: line.range.start, end: line.range.end, offset: indentation.length + number.length };
+			})
+			.filter(<T>(x: T | undefined): x is T => !!x);
+
+		await activeEditor.edit(builder => {
+			resultLines.map(line => {
+				const prefix = ' '.repeat(line.offset - 1) + '↑';
+				builder.insert(line.start, prefix + '  \n');
+			});
+		});
+
+		await vscode.commands.executeCommand('cursorUp');
+	});
+
+	vscode.commands.registerCommand('searchEditorApplyChanges.insertLineBelow', async () => {
+		const activeEditor = vscode.window.activeTextEditor;
+		const activeDocument = activeEditor?.document;
+		if (!activeEditor || !activeDocument || activeDocument.languageId !== 'search-result') {
+			return;
+		}
+
+		const resultLines = activeEditor.selections
+			.map(selection => activeDocument.lineAt(selection.start.line))
+			.map(line => {
+				const match = RESULT_LINE_REGEX.exec(line.text);
+				if (!match) { return undefined; }
+				const [_, indentation, number] = match;
+				return { start: line.range.start, end: line.range.end, offset: indentation.length + number.length };
+			})
+			.filter(<T>(x: T | undefined): x is T => !!x);
+
+		activeEditor.edit(builder => {
+			resultLines.map(line => {
+				const prefix = ' '.repeat(line.offset - 1) + '↓';
+				builder.insert(line.end, '\n' + prefix + '  ');
+			});
+		});
+	});
+
+	vscode.commands.registerCommand('searchEditorApplyChanges.deleteLine', async () => {
+
+	});
 
 	context.subscriptions.push(vscode.commands.registerCommand('searchEditorApplyChanges.apply', async () => {
 		const activeDocument = vscode.window.activeTextEditor?.document;
@@ -18,10 +74,11 @@ export function activate(context: vscode.ExtensionContext) {
 		let currentDocument: vscode.TextDocument | undefined;
 		let currentTarget: vscode.Uri | undefined;
 		const edit = new vscode.WorkspaceEdit();
-		let editedFiles = new Set();
 		let warnLongLines = false;
 
-		const channel = vscode.window.createOutputChannel("Search Editor");
+		let lastLineEnd: vscode.Position | undefined = undefined;
+		let toInsertBelow: string[] = [];
+		let toInsertAbove: string[] = [];
 
 		for (const line of lines) {
 			const fileLine = FILE_LINE_REGEX.exec(line);
@@ -37,25 +94,40 @@ export function activate(context: vscode.ExtensionContext) {
 			const resultLine = RESULT_LINE_REGEX.exec(line);
 			if (resultLine) {
 				const [, indentation, _lineNumber, seperator, newLine] = resultLine;
-				const lineNumber = +_lineNumber - 1;
-				const oldLine = currentDocument.lineAt(lineNumber);
-				if (oldLine.range.end.character > 200) {
-					// TODO: #2
-					warnLongLines = true;
+				if (_lineNumber === '↓') {
+					toInsertBelow.push(newLine + '\n');
+				} else if (toInsertBelow.length) {
+					if (!lastLineEnd) { throw Error('Unable to insert below, previous line not found'); }
+					edit.insert(currentTarget, lastLineEnd, toInsertBelow.join(''));
+					toInsertBelow = [];
 				}
-				else if (oldLine.text !== newLine) {
-					if (!editedFiles.has(currentTarget.toString())) {
-						editedFiles.add(currentTarget.toString());
-						channel.appendLine(filename);
+
+				if (_lineNumber === '↑') {
+					toInsertAbove.push(newLine + '\n');
+				}
+
+				if (_lineNumber !== '↓' && _lineNumber !== '↑') {
+					const lineNumber = +_lineNumber - 1;
+					const oldLine = currentDocument.lineAt(lineNumber);
+					lastLineEnd = oldLine.rangeIncludingLineBreak.end;
+					if (oldLine.range.end.character > 200) {
+						// TODO: #2
+						warnLongLines = true;
 					}
-					channel.appendLine(`	${oldLine.text} => ${newLine}`);
-					edit.replace(currentTarget, oldLine.range, newLine);
+					else if (oldLine.text !== newLine) {
+						edit.replace(currentTarget, oldLine.range, toInsertAbove.join('') + newLine);
+					} else if (toInsertAbove.length) {
+						edit.insert(currentTarget, oldLine.range.start, toInsertAbove.join(''));
+					}
+					toInsertAbove = [];
 				}
+			} else {
+				lastLineEnd = undefined;
 			}
 		}
 
 		if (warnLongLines) {
-			vscode.window.showWarningMessage('Changes to lines over 200 charachters in length may have been ignored.');
+			vscode.window.showWarningMessage('Changes to lines over 200 characters in length may have been ignored.');
 		}
 
 		vscode.workspace.applyEdit(edit);
