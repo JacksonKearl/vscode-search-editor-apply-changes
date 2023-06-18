@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 
 		if (warnLongLines) {
-			vscode.window.showWarningMessage('Changes to lines over 200 charachters in length may have been ignored.');
+			vscode.window.showWarningMessage('Changes to lines over 200 characters in length may have been ignored.');
 		}
 
 		vscode.workspace.applyEdit(edit);
