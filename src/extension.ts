@@ -1,11 +1,92 @@
 import * as vscode from 'vscode';
 import * as pathUtils from 'path';
 
+type LineRecord = {
+	lineIndex: number;
+	searchEditorContent: string;
+	appendedLines: string[];
+}
+
+type FileRecord = {
+	path: string;
+	lines: LineRecord[];
+}
 
 const FILE_LINE_REGEX = /^(\S.*):$/;
 const RESULT_LINE_REGEX = /^(\s+)(\d+)(:| ) (.*)$/;
+/**
+ * Also support CRLF line endings 
+ * in case somebody still uses it in source files /)_-) 
+ */
+const LINE_BREAK_REGEX = /\r?\n/;
+
+export const makeSearchResultModel = (searchResult: string) => {
+	const filesChangeModel: FileRecord[] = []; 
+	let lastLine: LineRecord | null = null;
+	let lastFile: FileRecord | null = null;
+
+	const lines = searchResult.split(LINE_BREAK_REGEX);
+	for (const line of lines) {
+		const fileLine = FILE_LINE_REGEX.exec(line);
+		const resultLine = RESULT_LINE_REGEX.exec(line);
+
+		if (fileLine) {
+			const [, path] = fileLine;
+			const fileRecord = {path, lines: []};
+			filesChangeModel.push(fileRecord);
+			lastFile = fileRecord;
+			lastLine = null;
+
+		} else if (resultLine && lastFile) {
+			const [, _indentation, lineNumber, _separator, newLine] = resultLine;
+			const lineIndex =  +lineNumber - 1;
+			lastLine = {lineIndex, searchEditorContent: newLine, appendedLines: []};
+			lastFile.lines.push(lastLine);
+		} else if (lastLine) {
+			lastLine.appendedLines.push(line);
+		}
+	}
+
+	// post processing
+	for (const file of filesChangeModel) {
+		// Sort lines in reverse order to make changes in correct places in file
+		file.lines.sort((a, b) => b.lineIndex - a.lineIndex);
+	}
+
+	return filesChangeModel;
+};
+
+export const makeNewLineContent = (line: LineRecord, document: vscode.TextDocument): string => {
+	const appendedContentIsEmpty = line.appendedLines.join("").trim() === "";
+	if (appendedContentIsEmpty) {
+		return line.searchEditorContent;
+	}
+
+	const eol = document.eol === vscode.EndOfLine.CRLF ? "\r\n" : "\n";
+	return [line.searchEditorContent, ...line.appendedLines].join(eol);
+};
+
+export const  processLineRecord =(
+	lineRecord: LineRecord, 
+	currentDocument: vscode.TextDocument, 
+	currentTarget: vscode.Uri, 
+	edit: vscode.WorkspaceEdit,
+	channel: vscode.OutputChannel
+): void => {	
+	const originalLine = currentDocument.lineAt(lineRecord.lineIndex);
+	const newContent = makeNewLineContent(lineRecord, currentDocument);
+	
+	if (originalLine.text !== newContent) {
+		channel.appendLine(`${lineRecord.lineIndex}:	${originalLine.text} => ${newContent}`);
+		edit.replace(currentTarget, originalLine.range, newContent);
+	}
+};
 
 export function activate(context: vscode.ExtensionContext) {
+	// Create the output channel once during activation
+	const channel = vscode.window.createOutputChannel("Search Editor");
+	// Add the channel to subscriptions so it gets disposed properly
+	context.subscriptions.push(channel);
 
 	context.subscriptions.push(vscode.commands.registerCommand('searchEditorApplyChanges.apply', async () => {
 		const activeDocument = vscode.window.activeTextEditor?.document;
@@ -13,49 +94,19 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const lines = activeDocument.getText().split('\n');
-		let filename: string | undefined;
-		let currentDocument: vscode.TextDocument | undefined;
-		let currentTarget: vscode.Uri | undefined;
 		const edit = new vscode.WorkspaceEdit();
-		let editedFiles = new Set();
-		let warnLongLines = false;
 
-		const channel = vscode.window.createOutputChannel("Search Editor");
+		const filesModel = makeSearchResultModel(activeDocument.getText());
+		for (const fileRecord of filesModel) {
+			channel.appendLine(fileRecord.path);
+			
+			const currentTarget = relativePathToUri(fileRecord.path, activeDocument.uri);
+			const currentDocument = currentTarget && await vscode.workspace.openTextDocument(currentTarget);
+			if (!currentDocument) { continue; }
 
-		for (const line of lines) {
-			const fileLine = FILE_LINE_REGEX.exec(line);
-			if (fileLine) {
-				const [, path] = fileLine;
-				currentTarget = relativePathToUri(path, activeDocument.uri);
-				currentDocument = currentTarget && await vscode.workspace.openTextDocument(currentTarget);
-				filename = currentTarget && line;
+			for (const lineRecord of fileRecord.lines) {
+				processLineRecord(lineRecord, currentDocument, currentTarget!, edit, channel);
 			}
-
-			if (!currentDocument || !currentTarget || !filename) { continue; }
-
-			const resultLine = RESULT_LINE_REGEX.exec(line);
-			if (resultLine) {
-				const [, indentation, _lineNumber, seperator, newLine] = resultLine;
-				const lineNumber = +_lineNumber - 1;
-				const oldLine = currentDocument.lineAt(lineNumber);
-				if (oldLine.range.end.character > 200) {
-					// TODO: #2
-					warnLongLines = true;
-				}
-				else if (oldLine.text !== newLine) {
-					if (!editedFiles.has(currentTarget.toString())) {
-						editedFiles.add(currentTarget.toString());
-						channel.appendLine(filename);
-					}
-					channel.appendLine(`	${oldLine.text} => ${newLine}`);
-					edit.replace(currentTarget, oldLine.range, newLine);
-				}
-			}
-		}
-
-		if (warnLongLines) {
-			vscode.window.showWarningMessage('Changes to lines over 200 charachters in length may have been ignored.');
 		}
 
 		vscode.workspace.applyEdit(edit);
